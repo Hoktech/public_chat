@@ -1,10 +1,9 @@
-const express = require('express');  // Add this line to import express
+const express = require('express');
 const http = require('http');
 const socketIo = require('socket.io');
 const mongoose = require('mongoose');
 const cors = require('cors');
-const axios = require('axios');
-
+const axios = require('axios'); // استيراد axios
 const app = express();
 const server = http.createServer(app);
 const io = socketIo(server, {
@@ -13,69 +12,54 @@ const io = socketIo(server, {
         methods: ['GET', 'POST']
     }
 });
-
-app.use(express.json()); // لدعم بيانات JSON
-app.use(cors());
-
 // الاتصال بقاعدة البيانات
 mongoose.connect('mongodb+srv://hok:6pG3wMvFCkj5oPQl@chat.5der7.mongodb.net/', {
     useNewUrlParser: true,
     useUnifiedTopology: true
 });
-
 // تعريف نموذج الرسائل
 const messageSchema = new mongoose.Schema({
-    message: String,
-    nickname: String,
-    ip: String,
-    audio: Buffer,
-    timestamp: { type: Date, default: Date.now }
+    message: String,           // النص
+    nickname: String,          // الاسم المستعار
+    ip: String,                // عنوان الـ IP
+    audio: Buffer,             // البيانات الصوتية بصيغة Base64
+    timestamp: { type: Date, default: Date.now } // تاريخ ووقت الرسالة
 });
 const Message = mongoose.model('Message', messageSchema);
-
-// API للحصول على جميع الرسائل
-app.get('/api/messages', async (req, res) => {
-    try {
-        const messages = await Message.find().sort({ timestamp: -1 });
-        res.json(messages);
-    } catch (error) {
-        res.status(500).json({ error: 'Failed to fetch messages' });
-    }
-});
-
-// API لإرسال رسالة جديدة
-app.post('/api/messages', async (req, res) => {
-    try {
-        const { message, nickname, type } = req.body;
-        // الحصول على IP الخارجي
-        const response = await axios.get('https://api.ipify.org?format=json');
-        const externalIp = response.data.ip;
-        let newMessage;
-        if (type === 'audio') {
-            const audioBuffer = Buffer.from(message, 'base64');
-            newMessage = new Message({ nickname, ip: externalIp, audio: audioBuffer });
-        } else {
-            newMessage = new Message({ message, nickname, ip: externalIp });
-        }
-        await newMessage.save();
-        
-        // بث الرسالة للمستخدمين المتصلين عبر WebSocket
-        io.emit('receive_message', { message, nickname, type });
-        res.status(201).json(newMessage);
-    } catch (error) {
-        res.status(500).json({ error: 'Failed to save message' });
-    }
-});
-
-// التعامل مع الاتصالات اللحظية باستخدام Socket.io
 io.on('connection', (socket) => {
     console.log(`User connected: ${socket.id}`);
+    socket.on('send_message', async (data) => {
+        try {
+            // الحصول على IP الخارجي باستخدام خدمة ipify
+            const response = await axios.get('https://api.ipify.org?format=json');
+            const externalIp = response.data.ip;
+            // حفظ الرسائل الصوتية
+            if (data.type === 'audio') {
+                const audioBuffer = Buffer.from(data.message, 'base64'); // تحويل البيانات الصوتية من Base64 إلى Buffer
+                const newMessage = new Message({
+                    nickname: data.nickname,
+                    ip: externalIp,
+                    audio: audioBuffer // حفظ البيانات الصوتية
+                });
+                await newMessage.save();
+            } else {
+                // حفظ الرسائل النصية
+                const newMessage = new Message({
+                    message: data.message,
+                    nickname: data.nickname,
+                    ip: externalIp
+                });
+                await newMessage.save();
+            }
+            io.emit('receive_message', data); // بث الرسالة لجميع المستخدمين
+        } catch (error) {
+            console.error('Error fetching external IP:', error);
+        }
+    });
     socket.on('disconnect', () => {
         console.log(`User disconnected: ${socket.id}`);
     });
 });
-
-// تشغيل الخادم
 server.listen(3000, () => {
     console.log('Server is running on port 3000');
 });
