@@ -1,21 +1,28 @@
 {
   "name": "chat-app",
   "version": "1.0.0",
+  "description": "A simple chat application with Socket.io and MongoDB",
+  "main": "server.js",
   "scripts": {
-    "start": "react-scripts start",
-    "build": "react-scripts build",
-    "serve": "serve -s build",
-    "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "start": "node server.js"
   },
   "dependencies": {
     "axios": "^1.7.8",
+    "cors": "^2.8.5",
+    "express": "^4.21.1",
+    "http": "^0.0.1-security",
     "mongoose": "^8.8.3",
     "react": "^17.0.2",
     "react-dom": "^17.0.2",
-    "react-scripts": "^3.0.1"
+    "react-scripts": "^5.0.1",
+    "socket.io": "^4.8.1"
   },
   "devDependencies": {
     "netlify-cli": "^17.38.0"
-  }
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "author": "",
+  "license": "ISC"
 }
